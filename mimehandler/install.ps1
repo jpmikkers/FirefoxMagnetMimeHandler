@@ -1,4 +1,4 @@
-﻿#bugfix, make sure arrays are emitted correctly as json arrays
+﻿# powershell bugfix, make sure arrays are emitted correctly as json arrays
 Remove-TypeData System.Array -ErrorAction Ignore
 
 # https://4sysops.com/archives/convert-json-to-a-powershell-hash-table/
@@ -63,11 +63,13 @@ if(!(Test-Path $configfile -PathType Leaf))
     return    
 }
 
+"Firefox handlers file located at '$configfile'"
+$configurationModified = $false
 $configuration = Get-Content $configfile -Raw | ConvertFrom-Json | ConvertTo-HashTable
 
 if($configuration.ContainsKey('schemes'))
 {
-    if($configuration.schemes.ContainsKey('magnet'))
+    if($configuration.schemes.ContainsKey('magnet') -and $configuration.schemes.magnet.ContainsKey('handlers'))
     {
         "Magnet scheme available, checking.."
 
@@ -84,18 +86,37 @@ if($configuration.ContainsKey('schemes'))
         if($installed)
         {
             "Already installed"
+            if((Read-Host -Prompt "uninstall magnet handler? [y/N]") -match "[yY]")
+            {
+                $configuration.schemes.Remove('magnet')
+                $configurationModified=$true
+            }
         }
         else
         {
-            "We're not one of the handlers yet, adding.."
-            $configuration.schemes.magnet.handlers.Add( @{ "name"=$mimehandlername; "path"=$mimehandlerpath } )
+            "We're not one of the handlers yet.."
+            if(!((Read-Host -Prompt "install magnet handler? [Y/n]") -match "[nN]"))
+            {
+                $configuration.schemes.magnet.handlers.Add( @{ "name"=$mimehandlername; "path"=$mimehandlerpath } )
+                $configurationModified=$true
+            }
         }
     }
     else
     {
         "No magnet handler yet, adding..."
-        $configuration.schemes['magnet']=@{ "handlers"=@( @{ "name"=$mimehandlername; "path"=$mimehandlerpath } ); "action"=2 }
+        if(!((Read-Host -Prompt "install magnet handler? [Y/n]") -match "[nN]"))
+        {
+            $configuration.schemes['magnet']=@{ "handlers"=@( @{ "name"=$mimehandlername; "path"=$mimehandlerpath } ); "action"=2 }
+            $configurationModified=$true
+        }
     }
 }
 
-$configuration | ConvertTo-Json -Compress -Depth 100 | Out-File -Encoding utf8 $configfile -Force
+if($configurationModified)
+{
+    $configuration | ConvertTo-Json -Compress -Depth 100 | Out-File -Encoding utf8 $configfile -Force
+}
+
+"Press enter to close.."
+Read-Host
