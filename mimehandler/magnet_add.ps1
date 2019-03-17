@@ -4,6 +4,12 @@ Param(
    [string]$magnetlink
 )
 
+if(!($magnetlink -match "^magnet\:"))
+{
+    "Not a magnet link!"
+    return
+}
+
 $configfile = Join-Path $env:USERPROFILE -ChildPath "mime_magnet_config.json"
 $configuration = @{ "address"=""; "port"=-1; "username"=""; "password"="" }
 $configmodified = $false
